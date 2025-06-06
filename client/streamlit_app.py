@@ -35,41 +35,40 @@ if st.button("🚀 Отправить сообщение"):
                 col1, col2, col3 = st.columns(3)
                 with col1:
                     st.metric("Статус", result["shield"]["status"])
-                    st.metric("Подозрительность", f"{shield_details['suspicion_score']}/100")
+                    st.metric("Подозрительность", f"{shield_details['балл_подозрительности']}/100")
                 with col2:
-                    if shield_details["found_hard_triggers"]:
-                        st.error(f"🚨 Жесткие триггеры: {', '.join(shield_details['found_hard_triggers'])}")
-                    if shield_details["found_soft_triggers"]:
-                        st.warning(f"⚠️ Мягкие триггеры: {', '.join(shield_details['found_soft_triggers'])}")
+                    if shield_details["найденные_жесткие_триггеры"]:
+                        st.error(f"🚨 Жесткие триггеры: {', '.join(shield_details['найденные_жесткие_триггеры'])}")
+                    if shield_details["найденные_мягкие_триггеры"]:
+                        st.warning(f"⚠️ Мягкие триггеры: {', '.join(shield_details['найденные_мягкие_триггеры'])}")
                 with col3:
-                    st.write(f"**Угрожающий тон:** {'⚠️' if shield_details['is_threatening'] else '✅'}")
-                    st.write(f"**Токсичность:** {'⚠️' if shield_details['is_toxic'] else '✅'}")
-                    st.write(f"**Подозрительный URL:** {'⚠️' if shield_details['has_suspicious_url'] else '✅'}")
+                    st.write(f"**Угрожающий тон:** {'⚠️' if shield_details['угрожающий_тон'] else '✅'}")
+                    st.write(f"**Токсичность:** {'⚠️' if shield_details['токсичный'] else '✅'}")
+                    st.write(f"**Подозрительный URL:** {'⚠️' if shield_details['подозрительный_урл'] else '✅'}")
                 
                 # Детали Умного Ивана
                 st.subheader("🧠 Умный Иван")
                 ivan_details = result["ivan"]["details"]
-                
                 col1, col2, col3 = st.columns(3)
                 with col1:
                     st.metric("Решение", result["ivan"]["status"])
-                    st.metric("Вероятность клика", f"{ivan_details['click_probability']}%")
-                    st.metric("Эмоция", ivan_details["emotion_detected"])
+                    st.metric("Вероятность клика", f"{ivan_details['вероятность_клика']}%")
+                    st.metric("Эмоция", ivan_details["обнаруженная_эмоция"])
                 
                 with col2:
                     st.write("**Психологические триггеры:**")
-                    triggers = ivan_details["psychological_triggers"]
+                    triggers = ivan_details["психологические_триггеры"]
                     for trigger, active in triggers.items():
                         st.write(f"• {trigger}: {'✅' if active else '❌'}")
                 
                 with col3:
                     st.write("**Негативные факторы:**")
-                    negatives = ivan_details["negative_factors"]
+                    negatives = ivan_details["негативные_факторы"]
                     for factor, active in negatives.items():
                         st.write(f"• {factor}: {'❌' if active else '✅'}")
                 
                 # Найденные призывы к действию
-                actions = ivan_details["action_calls"]
+                actions = ivan_details["призывы_к_действию"]
                 if any(actions.values()):
                     st.info("**Найдены призывы к действию:**")
                     for category, phrases in actions.items():
