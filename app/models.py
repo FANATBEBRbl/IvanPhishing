@@ -1,10 +1,57 @@
-from transformers import pipeline
 import re
 import random
+import torch
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
+import torch.nn.functional as F
 
-# === УМНЫЙ ШИТ ===
-shield_phishing_model = pipeline("text-classification", model="martin-ha/toxic-comment-model")
-shield_sentiment_model = pipeline("sentiment-analysis", model="cardiffnlp/twitter-roberta-base-sentiment-latest")
+# === ПРЯМАЯ ЗАГРУЗКА МОДЕЛЕЙ БЕЗ PIPELINE ===
+# Модель для анализа тональности
+sentiment_model_path = "./twitter-roberta-base-sentiment"
+sentiment_model = AutoModelForSequenceClassification.from_pretrained(sentiment_model_path)
+sentiment_tokenizer = AutoTokenizer.from_pretrained(sentiment_model_path)
+
+# Модель для определения токсичности
+toxic_model_path = "./toxic-comment-model"
+toxic_model = AutoModelForSequenceClassification.from_pretrained(toxic_model_path)
+toxic_tokenizer = AutoTokenizer.from_pretrained(toxic_model_path)
+
+def analyze_sentiment(text):
+    """Анализ тональности через прямое использование модели"""
+    try:
+        inputs = sentiment_tokenizer(text, return_tensors="pt", truncation=True, max_length=512)
+        outputs = sentiment_model(**inputs)
+        probabilities = F.softmax(outputs.logits, dim=-1)
+        predicted_class = torch.argmax(probabilities, dim=-1).item()
+        confidence = probabilities[0][predicted_class].item()
+        
+        # LABEL_0 = negative, LABEL_1 = neutral, LABEL_2 = positive
+        labels = ["LABEL_0", "LABEL_1", "LABEL_2"]
+        return {
+            "label": labels[predicted_class],
+            "score": confidence
+        }
+    except Exception as e:
+        print(f"Ошибка анализа тональности: {e}")
+        return {"label": "LABEL_1", "score": 0.5}
+
+def analyze_toxicity(text):
+    """Анализ токсичности через прямое использование модели"""
+    try:
+        inputs = toxic_tokenizer(text, return_tensors="pt", truncation=True, max_length=512)
+        outputs = toxic_model(**inputs)
+        probabilities = F.softmax(outputs.logits, dim=-1)
+        predicted_class = torch.argmax(probabilities, dim=-1).item()
+        confidence = probabilities[0][predicted_class].item()
+        
+        # Предполагаем, что 1 = TOXIC, 0 = NOT_TOXIC
+        is_toxic = predicted_class == 1
+        return {
+            "label": "TOXIC" if is_toxic else "NOT_TOXIC",
+            "score": confidence
+        }
+    except Exception as e:
+        print(f"Ошибка анализа токсичности: {e}")
+        return {"label": "NOT_TOXIC", "score": 0.5}
 
 def is_phishing(text: str) -> dict:
     """Продвинутый анализ на фишинг с несколькими слоями защиты"""
@@ -16,21 +63,13 @@ def is_phishing(text: str) -> dict:
     # 2. МЯГКИЕ ТРИГГЕРЫ (повышают подозрительность)
     soft_triggers = ["срочно", "немедленно", "истекает", "заблокирован", "подтвердите"]
     found_soft = [t for t in soft_triggers if re.search(rf'\b{t}\b', text.lower())]
-    
-    # 3. АНАЛИЗ ТОНАЛЬНОСТИ (подозрительно негативные сообщения)
-    try:
-        sentiment = shield_sentiment_model(text)[0]
-        is_threatening = (sentiment["label"] == "LABEL_0" and sentiment["score"] > 0.7)  # NEGATIVE
-    except:
-        threatening_words = ["потеряете", "заблокируем", "удалим", "прекратим"]
-        is_threatening = any(word in text.lower() for word in threatening_words)
+      # 3. АНАЛИЗ ТОНАЛЬНОСТИ (подозрительно негативные сообщения)
+    sentiment = analyze_sentiment(text)
+    is_threatening = (sentiment["label"] == "LABEL_0" and sentiment["score"] > 0.7)  # NEGATIVE
     
     # 4. АНАЛИЗ ТОКСИЧНОСТИ
-    try:
-        toxicity = shield_phishing_model(text)[0]
-        is_toxic = toxicity["label"] == "TOXIC" and toxicity["score"] > 0.5
-    except:
-        is_toxic = False
+    toxicity = analyze_toxicity(text)
+    is_toxic = toxicity["label"] == "TOXIC" and toxicity["score"] > 0.5
     
     # 5. ПРОВЕРКА URL ПАТТЕРНОВ
     suspicious_domains = ["bit.ly", "tinyurl", "goo.gl", "t.co"]
@@ -86,7 +125,6 @@ def is_phishing(text: str) -> dict:
     }
 
 # === УМНЫЙ ИВАН С ФИКСОМ ЭМОЦИЙ ===
-ivan_sentiment_model = pipeline("sentiment-analysis", model="cardiffnlp/twitter-roberta-base-sentiment-latest")
 
 def analyze_emotions_russian(text: str) -> dict:
     """Анализ эмоций для русского текста на основе ключевых слов"""

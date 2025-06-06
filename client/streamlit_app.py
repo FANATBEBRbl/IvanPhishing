@@ -17,7 +17,7 @@ if st.button("🚀 Отправить сообщение"):
         if contains_link(message):
             try:
                 response = requests.post(
-                    "http://31.31.197.45:8000/check-message/",
+                    "http://localhost:8000/check-message/",
                     json={"message": message}
                 )
                 result = response.json()
